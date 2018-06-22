@@ -1,0 +1,212 @@
+<html>
+	<head>
+		<title>Utilities Ledger</title>
+		<link rel='stylesheet' href='/static/bills/css/index.css'></link>
+		<link href="https://fonts.googleapis.com/css?family=Inconsolata|Roboto" rel="stylesheet">
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+		<script src="/static/bills/js/jquery.validate.min.js"></script>
+		<script src="/static/bills/js/index.js"></script>
+		
+	</head>
+	<body>
+		<div id='modal-block'></div>
+		<div id='mark-paid-dialog-outer' class='shadow'>
+			<div id='mark-paid-dialog-title'> Mark Payment:</div>
+			<div id='mark-paid-dialog'>
+				<div class='column'>
+				<div class='column-row'>
+					I paid:
+				</div>
+				<div class='column-row'>
+					The amount of:
+				</div>
+				<button class='mark-paid-button' id='mark-paid-button-cancel'>Cancel</button>
+				</div>
+				
+				<div class='column'>
+					<form action='api/mark_amount_paid/' method='POST' id='mark-amount-paid-form'> {% csrf_token %}
+						<div class='column-row'>
+							<select id='mark-paid-to' name='id'> 
+								{% for u in user_list %}
+									{% if u.id != current_user.id %}
+										<option value='{{ u.id }}'>{{ u.first_name }}</option>
+									{% endif %}
+								{% endfor %}
+							</select>
+						</div>
+						<div class='column-row'>
+							$<input id='mark-paid-amount' type='number' style='width:67px' name='amount'>
+						</div>
+						<button class='mark-paid-button'>Confirm</button>
+					</form>
+					</div>
+					<br style='clear: both'>
+					<div id='paid-error-message'></div>
+				
+			</div>
+		</div>
+		<div id='header' class='shadow'>
+			<div id='header-inner'>
+				Roommate Utilities Ledger
+				<div id='header-user'>
+					Logged in as: <br><span id='header-user-username'>{{ current_user.first_name }} {{ current_user.last_name }}</span>
+					<br><a href='http://diekisdreamings.com/bills/logout/'>Logout</a>
+				</div>
+				<br style='clear: both'>
+			</div>
+		</div>
+		<div id='main'>
+			<div id='balance'>
+				<div id='you-owe' class='balance-box-outer'>
+					<div class='balance-box-title'> You Owe:</div>
+					<div id='you-owe-inner' class='balance-box-inner shadow'>
+						{% for l in ledger %}
+							<div class='balance-item'>
+								<div class='balance-item-name'>{{ l.0 }}</div>
+								<div class='balance-item-amount'>
+									{% if l.1 < 0 %}
+										${{ l.1 |stringformat:".2f"|slice:"1:" }}
+										<div class='balance-item-paid' onclick="showPaidDialog('{{ l.1 |stringformat:".2f"|slice:"1:" }}', '{{ l.0 }}')"> Mark Paid </div>
+									{% else %}
+										$0.00
+										<div class='balance-item-paid zero'> Mark Paid </div>
+									{% endif %}
+								</div>
+							</div>
+						{% endfor %}
+						<br style='clear: both'>
+					</div>
+				</div>
+				<div id='you-are-owed' class='balance-box-outer'>
+					<div class='balance-box-title'> You Are Owed:</div>
+					<div id='you-are-owed-inner' class='balance-box-inner shadow'>
+						{% for l in ledger %}
+							<div class='balance-item'>
+								<div class='balance-item-name'>{{ l.0 }}</div>
+								<div class='balance-item-amount'>
+									{% if l.1 > 0 %}
+										${{ l.1 | floatformat:2}}
+										<div class='balance-item-paid zero'> Mark Paid </div>
+									{% else %}
+										$0.00
+										<div class='balance-item-paid zero'> Mark Paid </div>
+									{% endif %}
+								</div>
+							</div>
+						{% endfor %}
+						<br style='clear: both'>
+					</div>
+				</div>
+			</div>
+			<br style='clear: both'>
+			
+			<div class='tab-title' id='add-bill-tab'> Simple add:</div>
+			<div class='tab-title inactive' id='split-bill-tab'> Advanced split:</div>
+			<div id='add-bill' class='section shadow'>
+				<form method='POST' action='api/add_bill/' id='add-bill-form'>{% csrf_token %}
+					<select id='add-bill-debtor' name='debtor_id'> 
+						<option value='0'>Everyone</option>
+						{% for u in user_list %}
+							<option value='{{ u.id }}'>{{ u.first_name }}</option>
+						{% endfor %}
+					</select>
+					 owes 
+					<select id='add-bill-owner' name='owner'>
+						{% for u in user_list %}
+							<option value='{{ u.id }}' {% if u.id == current_user.id %} selected {% endif %} >{{ u.first_name }}</option>
+						{% endfor %}
+					</select>
+					 the total of 
+					<span class='currencyinput'>$<input type='text' name ='amount' id='add-bill-amount' placeholder = "0.00"></span>
+					 for 
+					 <input type='text' id='add-bill-description' name='description' placeholder = "Bill Name">
+					<button id='add-bill-confirm' type='submit'>Add</button>
+				</form>
+				<div id='bill-error-message'></div>
+			</div>
+			<div id='split-bill' class='section shadow'>
+				<form method='POST' action='api/split_bill/' id='split-bill-form'>{% csrf_token %}
+					
+					<div class='column' style='width:20%;'>
+						<div class='column-row'>Bill Total:</div>
+						<div class='column-row'>Description:</div>
+						<div class='column-row'>Owed to:</div>
+						<button id='add-bill-confirm' type='submit'>Add</button>
+					</div>
+					<div class='column' style='width:30%;'>
+
+						<div class='column-row'>
+							<span class='currencyinput'>$<input type='text' name ='amount' id='add-bill-amount' placeholder = "0.00"></span>
+						</div>
+						<div class='column-row'>
+							<input type='text' id='add-bill-description' name='description' placeholder = "Bill Name">
+						</div>
+						<div class='column-row'>
+							
+							<select id='add-bill-owner' name='owner'>
+								{% for u in user_list %}
+									<option value='{{ u.id }}' {% if u.id == current_user.id %} selected {% endif %} >{{ u.first_name }}</option>
+								{% endfor %}
+							</select>
+							
+						</div>
+					</div>
+					
+					<div class='column' style='width: 40%;'>
+						Split Between:<br>
+						<div id='split-bill-user-list'>
+							<input id='split-bill-check' type='checkbox' checked><br>
+							
+							{% for u in user_list %}
+								
+								<input value='{{ u.id }}' name='payee[]' type='checkbox' checked>{{ u.first_name }}<br>
+							{% endfor %}
+						</div>
+					</div>
+					<br style='clear:both'>
+				</form>
+				<div id='split-error-message'></div>
+			</div>
+			<div class='tab-title'> Bill list:</div>
+			<div id='bill_list_container' class='shadow section'>
+				<table id='bill_list'>
+				{% for split in bill_list %}
+					<tbody class='bill_list_split'>
+						<tr class='bill_list_title_tr'>
+							<td class='bill_list_title' colspan=8>
+								{{split.0.description}} 
+								- total ${{split.0.total}}
+								- added on {{split.0.created_date | date:"m/d/y"}}
+								
+							</td>
+						</tr>
+					{% for u in split %}
+						<tr {% if u.paid %} class='bill_list_paid' {% endif %}>
+							<td>{{u.debtor_name}}</td>
+							<td class='bill_list_filler'> OWES </td>
+							<td>{{u.owner_name}}</td>
+							<td>${{u.amount |floatformat:2}}</td>
+							<td class='bill_list_filler' style='width:45px !important'> FOR </td>
+							<td title='{{u.description}}' style='width:200px !important'>{{u.description|truncatechars:25}}</td>
+							<td class='bill_list_end_spacer'></td>
+							{% if u.paid %}
+								<td class='bill_list_paid_notice'>PAID <a href='api/mark_bill_unpaid/?id={{ u.id }}'>Undo</a></td> 
+							{% else %}
+								{% if u.debtor_id == current_user.id %} 
+									<td class='bill_list_paid_button'><a href='api/mark_bill_paid/?id={{ u.id }}'>Mark Paid</a></td> 
+								{% elif u.owner == current_user.id %} 
+									<td class='bill_list_paid_button'><a href='api/delete_bill/?id={{ u.id }}'>Delete</a></td> 
+								{% else %}
+									<td></td> 
+								{% endif %}
+							{% endif %}
+							
+						</tr>
+					{% endfor %}
+					</tbody>
+				{% endfor %}
+				</table>
+			</div>
+		</div>
+	</body>
+</html>
